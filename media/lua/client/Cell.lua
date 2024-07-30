@@ -1,28 +1,5 @@
 Cell = {}
 
--- Liste des types d'objets aléatoires possibles (vous pouvez ajouter ou modifier les types)
-local objectTypes = {
-    "Base.Torch",
-    "Base.Candle",
-    "Base.Book",
-    "Base.Knife",
-    "Base.BottleEmpty",
-    "Base.WaterBottleFull",
-    "Base.Bandage",
-    "Base.Soup",
-    "Base.CannedBeans",
-    "Base.CannedCornedBeef",
-    "Base.CannedChili",
-    "Base.CannedSoup",
-    "Base.CannedBolognese",
-    "Base.CannedCarrots",
-    "Base.CannedCorn",
-    "Base.CannedMushroomSoup",
-    "Base.CannedPeas",
-    "Base.CannedSardines",
-    "Base.CannedTomato",
-}
-
 -- Fonction pour vérifier si une tuile est à l'intérieur d'un bâtiment
 local function isIndoor(square)
     -- Vérifier si le carré existe et s'il a une pièce (room) associée
@@ -181,8 +158,7 @@ function Cell:populate(numberOfObjects)
 
     -- Ajouter des objets aléatoires à la tuile
     for i = 1, numberOfObjects do
-        local randomIndex = ZombRand(#objectTypes) + 1
-        local itemType = objectTypes[randomIndex]
+        local randItem = DB_getRandItem()
 
         local posX = 0.1
         local posY = 0.1
@@ -191,13 +167,11 @@ function Cell:populate(numberOfObjects)
             posX = ZombRandFloat(0,1)
             posY = ZombRandFloat(0,1)
         end
-        
-        -- Créer l'objet et l'ajouter au carré
-        local item = objectTypes[randomIndex]
-        if item then
-            self.square:AddWorldInventoryItem(item, posX, posY, 0)
+
+        if randItem then
+            self.square:AddWorldInventoryItem(randItem, posX, posY, 0)
         else
-            print("Échec de la création de l'objet : " .. itemType)
+            print("Échec de la création de l'objet : " .. randItem)
         end
     end
     self:update()
