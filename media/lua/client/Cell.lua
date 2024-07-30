@@ -1,84 +1,22 @@
 Cell = {}
 
--- Fonction pour vérifier si une tuile est à l'intérieur d'un bâtiment
-local function isIndoor(square)
-    -- Vérifier si le carré existe et s'il a une pièce (room) associée
+-----------------------------------------
+-- local functions for Cell class only --
+-----------------------------------------
+
+-- Function to initialize the room attribute of the cell
+
+local function getRoom(square)
+    local room = nil
     if square and square:getRoom() then
-        return true
+        room = square:getRoom()
     end
-    
-    return false
+    return room
 end
 
--- Fonction pour obtenir la pièce (room) d'un carré
-function Cell:getRoom(square)    
-    -- Vérifier si le carré existe et s'il a une pièce (room) associée
-    if square and square:getRoom() then
-        self.roomName = tostring(square:getRoom():getName())
-        self.room = square:getRoom()
-    end
-    
-    return nil
-end
+-- Function to get the container data of the cell
 
--- Fonction pour vérifier s'il y a une porte sur une tuile spécifique
-local function isDoor(square)
-    -- Vérifier si le carré existe
-    if square then
-        -- Parcourir les objets du carré
-        for i = 0, square:getObjects():size() - 1 do
-            local object = square:getObjects():get(i)
-            
-            -- Vérifier si l'objet est une porte
-            if object:getType() == IsoObjectType.doorFrN
-                or object:getType() == IsoObjectType.doorFrW
-                or object:getType() == IsoObjectType.doorN
-                or object:getType() == IsoObjectType.doorW then
-                return true
-            end
-        end
-    end
-    
-    return false
-end
-
--- Fonction pour vérifier s'il y a un mur sur une tuile spécifique
-local function isWall(square)
-    -- Vérifier si le carré existe
-    if square then
-        -- Parcourir les objets du carré
-        for i = 0, square:getObjects():size() - 1 do
-            local object = square:getObjects():get(i)
-            
-            -- Vérifier si l'objet est un mur
-            if object:getType() == IsoObjectType.wall then
-                return true
-            end
-        end
-    end
-    
-    return false
-end
-
--- Fonction pour vérifier s'il y a des objets au sol ou placés sur une tuile spécifique
-local function isItems(square)
-    local items = {}
-    -- Vérifier si le carré existe
-    if square then
-        -- Vérifier les objets au sol (items dropped)
-        local objects = square:getObjects()
-        for i = objects:size() - 1, 0, -1 do
-            local obj = objects:get(i)
-            if instanceof(obj, "IsoWorldInventoryObject") then
-                table.insert(items, obj)
-            end
-        end
-    end
-    
-    return items
-end
-
-function Cell:getContainerData(sq)
+local function getContainerData(sq)
     local container = nil
     local containerCapacity = 0
     local containerContentWeight = 0
@@ -94,101 +32,108 @@ function Cell:getContainerData(sq)
             end
         end
     end
-    self.container = container
-    self.containerCapacity = containerCapacity
-    self.containerContentWeight = containerContentWeight
+
+    return container, containerCapacity, containerContentWeight
 end
 
-function Cell:new(x, y, z)
+-- Function to get the items on the cell
+
+local function isItems(square)
+    local items = {}
+    if square then
+        local objects = square:getObjects()
+        for i = objects:size() - 1, 0, -1 do
+            local obj = objects:get(i)
+            if instanceof(obj, "IsoWorldInventoryObject") then
+                table.insert(items, obj)
+            end
+        end
+    end
+
+    return items
+end
+
+
+-- Function to initialize the Cell object attributes
+
+local function initializeCell(cell, sq)
+    if cell == nil or sq == nil then return nil end
+
+    cell.room = getRoom(sq)
+    if cell.room then
+        cell.roomName = cell.room:getName()
+        cell.building = cell.room:getBuilding()
+        cell.isIndoor = true
+    end
+
+    cell.items = isItems(sq)
+    cell.container, cell.containerCapacity, cell.containerContentWeight = getContainerData(sq)
+
+    return cell
+end
+
+-----------------------------------------
+-- Cell constructor
+-----------------------------------------
+-- Cell attributes definition
+--  square: IsoGridSquare object
+--  x: x coordinate of the cell
+--  y: y coordinate of the cell
+--  z: z coordinate of the cell
+--  isIndoor: boolean value to check if the cell is indoor
+--  room: IsoRoom object
+--  roomName: name of the room
+--  building: Building object
+--  container: ItemContainer object
+--  containerCapacity: maximum weight capacity of the container
+--  containerContentWeight: total weight of the container's content
+--  items: list of IsoWorldInventoryObject objects on the cell
+
+function Cell:new(_x, _y, _z)
     local sq = getCell():getGridSquare(x, y, z)
     local o = {
         square = sq,
-        x = sq:getX(),
-        y = sq:getY(),
-        z = sq:getZ(),
-        isIndoor = isIndoor(sq),
-        isWall = isWall(sq),
-        isDoor = isDoor(sq),
+
+        x = _x,
+        y = _y,
+        z = _z,
+
         room =  nil,
         roomName = nil,
         building = nil,
+        isIndoor = false,
+
         container = nil,
         containerCapacity = 0,
         containerContentWeight = 0,
 
-        items = isItems(sq)
+        items = {}
     }
-    self:getRoom(sq)
-    if self.room then
-        self.building = self.room:getBuilding()
-        --print("Building found: " .. tostring(self.building))
-    end
 
-    self:getContainerData(sq)
+    local oData = initializeCell(o, sq)
+
+    if oData then o = oData end
 
     setmetatable(o, self)
     self.__index = self
     return o
 end
 
+-- Function to update the Cell object attributes
+
 function Cell:update()
-    self.square = getCell():getGridSquare(self.x, self.y, self.z)
-    self.isIndoor = isIndoor(self.square)
-    self.isWall = isWall(self.square)
-    self.isDoor = isDoor(self.square)
-    self:getRoom(self.square)
-    self.items = {}
-    self.items = isItems(self.square)
-    self.building = self.room:getBuilding()
-    self:getContainerData(self.square)
+    self = initializeCell(self, self.square)
 end
 
-function Cell:populate(numberOfObjects)
-    local randomPos = true
-    -- Vérifier si le carré existe
-    if not self.square then
-        print("La tuile spécifiée n'existe pas.")
-        return
-    end
-
-    if not self.square:TreatAsSolidFloor() then
-        print("La tuile spécifiée n'est pas un sol solide.")
-        return
-    end
-
-    -- Ajouter des objets aléatoires à la tuile
-    for i = 1, numberOfObjects do
-        local randItem = DB_getRandItem()
-
-        local posX = 0.1
-        local posY = 0.1
-
-        if randomPos then 
-            posX = ZombRandFloat(0,1)
-            posY = ZombRandFloat(0,1)
-        end
-
-        if randItem then
-            self.square:AddWorldInventoryItem(randItem, posX, posY, 0)
-        else
-            print("Échec de la création de l'objet : " .. randItem)
-        end
-    end
-    self:update()
-end
+-- Function to clean the cell by removing all items on it
 
 function Cell:clean()
-	local items = self.items
-
-	-- Supprimer tous les objets placés sur la tuile
-	if items ~= nil then
-		if #items > 0 then
-			for i = #items, 1, -1 do
-				local item = items[i]
-				if item ~= nil then
-					self.square:removeWorldObject(item)
-				end
-			end
-		end
-	end
+    if self.items ~= nil then
+        for i = #self.items, 1, -1 do
+            local item = self.items[i]
+            if item ~= nil then
+                self.square:removeWorldObject(item)
+            end
+        end
+    end
 end
