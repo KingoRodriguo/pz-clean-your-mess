@@ -135,6 +135,9 @@ end
 function Cell:populate(qty)
     if self.square == nil then return end
 
+    local objects = self.square:getObjects()
+
+    if objects:size() > 2 then return end
     for i = 1, qty do
         local item = InventoryItemFactory.CreateItem(DB_getRandItem())
         if item then

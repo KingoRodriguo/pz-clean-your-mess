@@ -207,7 +207,7 @@ function Reset()
 end
 
 function DoCleaning()
-    --Reset()
+    Reset()
     cleaning = true
 
     local player = getPlayer()
@@ -227,6 +227,18 @@ function DoCleaning()
     end
 
     MoveToLocation(player, startSquare)
+end
+
+local function Test3()
+    local player = getPlayer()
+    local x = player:getX()
+    local y = player:getY()
+    local z = player:getZ()
+
+    local hc = getCore():getGoodHighlitedColor()
+    local floorSprite = IsoSprite.new()
+    floorSprite:LoadFramesNoDirPageSimple('media/ui/FloorTileCursor.png')
+    floorSprite:RenderGhostTileColor(x, y, z, hc:getR(), hc:getG(), hc:getB(), 0.8)
 end
 
 local function updateQueue()
