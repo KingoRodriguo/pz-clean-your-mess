@@ -5,7 +5,6 @@ Cell = {}
 -----------------------------------------
 
 -- Function to initialize the room attribute of the cell
-
 local function getRoom(square)
     local room = nil
     if square and square:getRoom() then
@@ -15,7 +14,6 @@ local function getRoom(square)
 end
 
 -- Function to get the container data of the cell
-
 local function getContainerData(sq)
     local container = nil
     local containerCapacity = 0
@@ -37,7 +35,6 @@ local function getContainerData(sq)
 end
 
 -- Function to get the items on the cell
-
 local function isItems(square)
     local items = {}
     if square then
@@ -53,9 +50,7 @@ local function isItems(square)
     return items
 end
 
-
 -- Function to initialize the Cell object attributes
-
 local function initializeCell(cell, sq)
     if cell == nil or sq == nil then return nil end
 
@@ -90,7 +85,7 @@ end
 --  items: list of IsoWorldInventoryObject objects on the cell
 
 function Cell:new(_x, _y, _z)
-    local sq = getCell():getGridSquare(x, y, z)
+    local sq = getCell():getGridSquare(_x, _y, _z)
     local o = {
         square = sq,
 
@@ -120,13 +115,11 @@ function Cell:new(_x, _y, _z)
 end
 
 -- Function to update the Cell object attributes
-
 function Cell:update()
     self = initializeCell(self, self.square)
 end
 
 -- Function to clean the cell by removing all items on it
-
 function Cell:clean()
     if self.items ~= nil then
         for i = #self.items, 1, -1 do
