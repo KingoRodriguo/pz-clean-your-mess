@@ -4,21 +4,64 @@ local containerCells = {}
 
 local actionQueue = {}
 
+local highlightCells = {}
+
 local emptyQueueActive = false
 local cleaning = false
+
+local roomColors = {}
+
+-- Fonction pour ajouter un GridSquare à la liste de surbrillance
+function addHighlightCell(cell)
+    table.insert(highlightCells, cell)
+end
+
+function updateHighlightCells()
+    highlightCells = {}
+    for _, room in pairs(cleanList) do
+        for _, cell in ipairs(room) do
+            if #cell.items > 0 then
+                addHighlightCell(cell)
+            end
+        end
+    end
+end
+
+-- Fonction de rendu pour dessiner la surbrillance
+local function renderHighlights()
+    updateHighlightCells()
+
+    for _, cell in ipairs(highlightCells) do
+        local hc = getCore():getGoodHighlitedColor()
+        local floorSprite = IsoSprite.new()
+        local room = cell.roomName
+        local r,g,b = 0,0,0
+        if roomColors[room] == nil then
+            roomColors[room] = {r = ZombRandFloat(0,1), g = ZombRandFloat(0,1), b = ZombRandFloat(0,1)}
+            r,g,b = roomColors[room].r, roomColors[room].g, roomColors[room].b
+        else
+            r,g,b = roomColors[room].r, roomColors[room].g, roomColors[room].b
+        end
+        floorSprite:LoadFramesNoDirPageSimple('media/ui/FloorTileCursor.png')
+        floorSprite:RenderGhostTileColor(cell.x, cell.y, cell.z, r, g, b, 0.8)
+    end
+end
+
+-- Enregistrer la fonction de rendu dans l'événement OnPostRender
+Events.OnPostRender.Add(renderHighlights)
 
 local function getClosestContainer(playerSquare)
     local closestContainerCell = nil
     local closestContainer = nil
-    local closestDistance = 1000
+    local closestDistance = 10000
 
     for _, cell in ipairs(containerCells) do
-        local distance = 1000
+        local distance = 10000
         if cell.square then
             if cell.container then 
                 if cell.container:getCapacityWeight() > cell.container:getMaxWeight()*0.8 then
                     print("Container is full")
-                    distance = 1000
+                    distance = 10000
                 else
                     distance = cell.square:DistTo(playerSquare) or distance
                 end
@@ -30,7 +73,13 @@ local function getClosestContainer(playerSquare)
             closestDistance = distance
         end
     end
-
+    if closestDistance == 10000 then
+        actionQueue = {}
+        cleanList = {}
+        highlightCells = {}
+        getPlayer():Say("No container found with enought space")
+        return nil, nil, nil
+    end
     return closestContainerCell, closestContainer, closestDistance
 end
 
@@ -49,7 +98,7 @@ local function MoveToLocation(player, toSquare, pos)
 
     local playerSquare = getCell():getGridSquare(x, y, z)
 
-    if playerSquare:isBlockedTo(toSquare) then
+    if playerSquare:isBlockedTo(adjacent) then
         --print("path blocked")
         return false
     end
@@ -96,10 +145,12 @@ local function InitialiseBuildings()
     end
 end
 
-function Test()
+function Test(mess)
     testList = {}
     cleanList = {}
     containerCells = {}
+
+    highlightCells = {}
 
     local player = getPlayer()
     local x = player:getX()
@@ -112,9 +163,10 @@ function Test()
 
     building:populate(x, y, z)
     table.insert(testList, building)
-    building:doMess()
+    if mess then building:doMess() end
 
     InitialiseBuildings()
+    print("highlightCells: " .. tostring(#highlightCells))
 end
 
 function Clean()
@@ -201,12 +253,13 @@ function Test2()
 end
 
 function Reset()
-    Test()
+    Test(false)
     Clean()
-    Test()
+    --Test(true)
 end
 
 function DoCleaning()
+    Test(true)
     cleaning = true
 
     local player = getPlayer()
@@ -228,19 +281,22 @@ function DoCleaning()
     MoveToLocation(player, startSquare)
 end
 
-local function Test3()
-    local player = getPlayer()
-    local x = player:getX()
-    local y = player:getY()
-    local z = player:getZ()
-
-    local hc = getCore():getGoodHighlitedColor()
-    local floorSprite = IsoSprite.new()
-    floorSprite:LoadFramesNoDirPageSimple('media/ui/FloorTileCursor.png')
-    floorSprite:RenderGhostTileColor(x, y, z, hc:getR(), hc:getG(), hc:getB(), 0.8)
+-- check all cells in in the cleanList, if they are empty remove them from the list
+local function updateCleanList()
+    for _, room in pairs(cleanList) do
+        for i = #room, 1, -1 do
+            local cell = room[i]
+            cell:update()
+            if #cell.items == 0 then
+                table.remove(room, i)
+            end
+        end
+    end
 end
 
 local function updateQueue()
+    updateCleanList()
+
     if cleaning then
         local player = getPlayer()
         local queue = ISTimedActionQueue.getTimedActionQueue(player)
