@@ -3,11 +3,10 @@ local cleanList = {}
 local containerCells = {}
 
 local actionQueue = {}
-local emptyQueue = {}
 
 local emptyQueueActive = false
 
-local function MoveToLocation(player, toSquare, queue)
+local function MoveToLocation(player, toSquare, pos)
     local x = player:getX()
     local y = player:getY()
     local z = player:getZ()
@@ -19,11 +18,18 @@ local function MoveToLocation(player, toSquare, queue)
         return false
     end
 
-    table.insert(queue, ISWalkToTimedAction:new(player, toSquare))
+    if pos == nil then
+        table.insert(actionQueue, ISWalkToTimedAction:new(player, toSquare))
+    else
+        --is a integer
+        if type(pos) == "number" then
+            table.insert(actionQueue, pos, ISWalkToTimedAction:new(player, toSquare))
+        end
+    end
     return true
 end
 
-function test()
+function Test()
     testList = {}
     local player = getPlayer()
     local x = player:getX()
@@ -39,14 +45,14 @@ function test()
     --building:doMess()
 end
 
-function clean()
+function Clean()
     for _, building in ipairs(testList) do
         building:clean()
     end
 end
 
 -- Take all items in a cell and put them in the player's inventory
-function takeAll(player, cell, queue)
+function TakeAll(player, cell, pos)
     local items = cell.items
 
     if #items > 0 then
@@ -54,7 +60,15 @@ function takeAll(player, cell, queue)
             local item = items[i]
             if item ~= nil then
                 local time = ISWorldObjectContextMenu.grabItemTime(player, item)
-                table.insert(queue, ISGrabItemAction:new(player, item, time))
+                
+                if pos == nil then
+                    table.insert(actionQueue, ISGrabItemAction:new(player, item, time))
+                else
+                    --is a integer
+                    if type(pos) == "number" then
+                        table.insert(actionQueue, pos, ISGrabItemAction:new(player, item, time))
+                    end
+                end
             end
         end
     end
@@ -62,7 +76,7 @@ function takeAll(player, cell, queue)
     cell:update()
 end
 
-function transferAll(player, container, queue)
+function TransferAll(player, container, queue)
     local playerInv = player:getInventory()
     local items = playerInv:getItems()
     if items == nil then
@@ -73,7 +87,7 @@ function transferAll(player, container, queue)
     end
 end
 
-function test2()
+function Test2()
     for _, building in ipairs(testList) do
         for _, room in pairs(building.rooms) do
             print("Room: " ..room)
@@ -81,7 +95,7 @@ function test2()
     end
 end
 
-function doCleaning()
+function DoCleaning()
     local player = getPlayer()
     local x = player:getX()
     local y = player:getY()
@@ -117,18 +131,18 @@ function doCleaning()
             local toSquare = cell.square
 
             MoveToLocation(player, toSquare, actionQueue)
-            takeAll(player, cell, actionQueue)
+            TakeAll(player, cell, actionQueue)
         end
     end
 
     MoveToLocation(player, startSquare, actionQueue)
 end
 
-function reset()
-    test()
-    clean()
+function Reset()
+    Test()
+    Clean()
     testList = {}
-    test()
+    Test()
 end
 
 
@@ -145,7 +159,7 @@ local function updateQueue()
     end
 
     --if playerInv full add moveto action to closest container and transfer all items
-    if playerInvWeight >= playerInvMaxWeight and #emptyQueue == 0 and not emptyQueueActive then
+    if playerInvWeight >= playerInvMaxWeight and not emptyQueueActive then
         emptyQueueActive = true
         local closestContainer = nil
         local closestDistance = 1000
@@ -167,19 +181,13 @@ local function updateQueue()
 
         if closestContainer then
             print("Moving to container. distance: " .. closestDistance)
-            MoveToLocation(player, closestContainer.square, emptyQueue)
-            transferAll(player, closestContainer.container, emptyQueue)
-            MoveToLocation(player, playerSquare, emptyQueue)
+            MoveToLocation(player, closestContainer.square, 1)
+            TransferAll(player, closestContainer.container, 1)
+            MoveToLocation(player, playerSquare, 1)
         end
     end
 
-    if #queue.queue == 0 and #emptyQueue > 0 and not queue.isPlayerDoingAction(player) then
-        print("empty Queue added: " .. tostring(emptyQueue[1]))
-        queue.add(emptyQueue[1])
-        table.remove(emptyQueue, 1)
-    end
-
-    if #queue.queue == 0 and #actionQueue > 0 and not queue.isPlayerDoingAction(player) and #emptyQueue == 0 and not emptyQueueActive then
+    if #queue.queue == 0 and #actionQueue > 0 and not queue.isPlayerDoingAction(player) then
         print("Queue action added")
         queue.add(actionQueue[1])
         table.remove(actionQueue, 1)

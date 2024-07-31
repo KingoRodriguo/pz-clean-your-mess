@@ -116,6 +116,7 @@ end
 
 -- Function to update the Cell object attributes
 function Cell:update()
+    if self.square == nil then return end
     self = initializeCell(self, self.square)
 end
 
