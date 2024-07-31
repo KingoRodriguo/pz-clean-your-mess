@@ -3,7 +3,7 @@ require "TileSorter"
 local highlightCells = {}
 
 --Debug oriented functions
---DONT USE IN RELEASE
+--DONT USE IN RELEASE --
 
 -- item list for random generation
 local RandItems = {
