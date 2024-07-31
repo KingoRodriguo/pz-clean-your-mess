@@ -96,8 +96,8 @@ end
 function Building:doMess()    
     for i = 1, #self.cells do
         local rand = ZombRandFloat(0,1)
-        local itemRand = ZombRand(1, 5)
-        if rand > 80 then
+        local itemRand = ZombRand(10, 20)
+        if rand > 0.80 then
             self.cells[i]:populate(itemRand)
         end
     end

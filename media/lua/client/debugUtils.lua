@@ -25,6 +25,8 @@ local RandItems = {
 }
 
 function DB_getRandItem()
-    return RandItems[math.random(1, #RandItems)]
+    local s = RandItems[ZombRandBetween(1, #RandItems)]
+    --print("Item: " ..s)
+    return s
 end
 

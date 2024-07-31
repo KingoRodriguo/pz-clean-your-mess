@@ -131,3 +131,21 @@ function Cell:clean()
         end
     end
 end
+
+function Cell:populate(qty)
+    if self.square == nil then return end
+
+    for i = 1, qty do
+        local item = InventoryItemFactory.CreateItem(DB_getRandItem())
+        if item then
+            self.square:AddWorldInventoryItem(item, ZombRandFloat(0,1), ZombRandFloat(0,1), 0.0)
+        end
+    end
+end
+
+function Cell:cleanContainer()
+    if self.container ~= nil then
+        self.container:emptyIt()
+        --print("Container cleaned")
+    end
+end
