@@ -207,7 +207,6 @@ function Reset()
 end
 
 function DoCleaning()
-    Reset()
     cleaning = true
 
     local player = getPlayer()
