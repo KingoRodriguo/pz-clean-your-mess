@@ -1,54 +1,11 @@
-local testList = {}
-local cleanList = {}
-local containerCells = {}
+testList = {}
+cleanList = {}
+containerCells = {}
 
 local actionQueue = {}
 
-local highlightCells = {}
-
 local emptyQueueActive = false
 local cleaning = false
-
-local roomColors = {}
-
--- Fonction pour ajouter un GridSquare à la liste de surbrillance
-function addHighlightCell(cell)
-    table.insert(highlightCells, cell)
-end
-
-function updateHighlightCells()
-    highlightCells = {}
-    for _, room in pairs(cleanList) do
-        for _, cell in ipairs(room) do
-            if #cell.items > 0 then
-                addHighlightCell(cell)
-            end
-        end
-    end
-end
-
--- Fonction de rendu pour dessiner la surbrillance
-local function renderHighlights()
-    updateHighlightCells()
-
-    for _, cell in ipairs(highlightCells) do
-        local hc = getCore():getGoodHighlitedColor()
-        local floorSprite = IsoSprite.new()
-        local room = cell.roomName
-        local r,g,b = 0,0,0
-        if roomColors[room] == nil then
-            roomColors[room] = {r = ZombRandFloat(0,1), g = ZombRandFloat(0,1), b = ZombRandFloat(0,1)}
-            r,g,b = roomColors[room].r, roomColors[room].g, roomColors[room].b
-        else
-            r,g,b = roomColors[room].r, roomColors[room].g, roomColors[room].b
-        end
-        floorSprite:LoadFramesNoDirPageSimple('media/ui/FloorTileCursor.png')
-        floorSprite:RenderGhostTileColor(cell.x, cell.y, cell.z, r, g, b, 0.8)
-    end
-end
-
--- Enregistrer la fonction de rendu dans l'événement OnPostRender
-Events.OnPostRender.Add(renderHighlights)
 
 local function getClosestContainer(playerSquare)
     local closestContainerCell = nil
