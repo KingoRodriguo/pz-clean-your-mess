@@ -14,10 +14,8 @@ local function getRoom(square)
 end
 
 -- Function to get the container data of the cell
-local function getContainerData(sq)
+local function getContainer(sq)
     local container = nil
-    local containerCapacity = 0
-    local containerContentWeight = 0
 
     local objects = sq:getObjects()
     for i = 0, objects:size() - 1 do
@@ -25,13 +23,40 @@ local function getContainerData(sq)
         if instanceof(obj, "IsoObject") then
             if obj:getContainerCount() > 0 then
                 container = obj:getContainer()
-                containerCapacity = container:getMaxWeight()
-                containerContentWeight = container:getContentsWeight()
             end
         end
     end
 
-    return container, containerCapacity, containerContentWeight
+    return container
+end
+
+-- Function to get the container prefered type
+function Cell:getContainerCategories(container, cell)
+    local _cell = cell or nil
+    local categories = {}
+    local categoryCount = 0
+    if container then
+        local items = container:getItems()
+        for i = 0, items:size() - 1 do
+            local item = items:get(i)
+            if item then
+                local itemCat = item:getCategory()
+                --print("Item category: " ..itemCat)
+                if itemCat then
+                    if categories[itemCat] == nil then 
+                        categories[itemCat] = 1 
+                        categoryCount = categoryCount + 1
+                    else
+                        categories[itemCat] = categories[itemCat] + 1
+                    end
+                end
+            end
+        end
+    end
+    if categoryCount > 0 then
+        --print("Categories found: " ..categoryCount)
+    end
+    return categories
 end
 
 -- Function to get the items on the cell
@@ -51,7 +76,7 @@ local function isItems(square)
 end
 
 -- Function to initialize the Cell object attributes
-local function initializeCell(cell, sq)
+function Cell:initializeCell(cell, sq)
     if cell == nil or sq == nil then return nil end
 
     cell.room = getRoom(sq)
@@ -62,7 +87,8 @@ local function initializeCell(cell, sq)
     end
 
     cell.items = isItems(sq)
-    cell.container, cell.containerCapacity, cell.containerContentWeight = getContainerData(sq)
+    cell.container = getContainer(sq)
+    cell.containerCategories = self:getContainerCategories(cell.container, cell)
 
     return cell
 end
@@ -99,13 +125,12 @@ function Cell:new(_x, _y, _z)
         isIndoor = false,
 
         container = nil,
-        containerCapacity = 0,
-        containerContentWeight = 0,
+        containerPreferedType = {},
 
         items = {}
     }
 
-    local oData = initializeCell(o, sq)
+    local oData = self:initializeCell(o, sq)
 
     if oData then o = oData end
 
@@ -117,7 +142,7 @@ end
 -- Function to update the Cell object attributes
 function Cell:update()
     if self.square == nil then return end
-    self = initializeCell(self, self.square)
+    self = self:initializeCell(self, self.square)
 end
 
 -- Function to clean the cell by removing all items on it

@@ -31,8 +31,8 @@ local RandItems = {
 local roomColors = {}
 
 local DB_HIGHLIGHT = true
-local DB_HIGHLIGHTMODE = "CleanList"
--- Available Modes: CleanList, ContainerCells, AllCells
+local DB_HIGHLIGHTMODE = "None"
+-- Available Modes: CleanList, ContainerCells, AllCells, None
 
 function DB_getRandItem()
     local s = RandItems[ZombRandBetween(1, #RandItems)]
@@ -42,11 +42,15 @@ end
 
 -- Fonction pour ajouter un GridSquare à la liste de surbrillance
 function addHighlightCell(cell)
+    if not cell then return end
+    --print("Highlighting cell: " ..cell.x .. "," .. cell.y .. "," .. cell.z)
     table.insert(highlightCells, cell)
 end
 
 function updateHighlightCells()
-    highlightCells = {}
+    if DB_HIGHLIGHT ~= "None" then
+        highlightCells = {}
+    end
 
     if DB_HIGHLIGHT then
         if DB_HIGHLIGHTMODE == "CleanList" then
@@ -76,6 +80,7 @@ local function renderHighlights()
     updateHighlightCells()
 
     for _, cell in ipairs(highlightCells) do
+        print("Rendering cell: " ..cell.x .. "," .. cell.y .. "," .. cell.z)
         local hc = getCore():getGoodHighlitedColor()
         local floorSprite = IsoSprite.new()
         local room = cell.roomName

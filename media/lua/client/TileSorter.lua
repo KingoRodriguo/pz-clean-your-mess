@@ -7,7 +7,10 @@ local actionQueue = {}
 local emptyQueueActive = false
 local cleaning = false
 
-local function getClosestContainer(playerSquare)
+local function getClosestContainer(player)
+    local x, y, z = player:getX(), player:getY(), player:getZ()
+    local playerSquare = getCell():getGridSquare(x, y, z)
+
     local closestContainerCell = nil
     local closestContainer = nil
     local closestDistance = 10000
@@ -37,7 +40,47 @@ local function getClosestContainer(playerSquare)
         getPlayer():Say("No container found with enought space")
         return nil, nil, nil
     end
-    return closestContainerCell, closestContainer, closestDistance
+    return closestContainerCell, closestContainer
+end
+
+local function getBestContainer(player, item)
+    local itemCat = item:getCategory()
+
+    local currentBestContainerCell = nil
+    local currentBestContainer = nil
+    local currentBestContainerValue = 0
+
+    if not itemCat then return end
+
+    for _, cell in ipairs(containerCells) do
+        --print("Checking cell: " .. tostring(cell))
+        cell:update()
+        if cell.container then
+            --print("Container found: " .. tostring(cell.container))
+            for _, categorie in pairs(cell.containerCategories) do
+                print("Container categorie name: " .. tostring(categorie))
+                local result = false
+                if categorie == itemCat then
+                    result = true
+                    if categorie > currentBestContainerValue then
+                        currentBestContainerValue = categorie
+                        currentBestContainer = cell.container
+                        currentBestContainerCell = cell
+                    end
+                end
+                print("Container categorie contain item categorie: " .. tostring(result))
+            end
+        else
+            print("No container found")
+        end
+    end
+    if not currentBestContainer then
+        print("Closest container choosen")
+        currentBestContainerCell, currentBestContainer = getClosestContainer(player)
+    else
+        print("Best container choosen")
+    end
+    return currentBestContainerCell, currentBestContainer
 end
 
 local function getPlayerSquare(player)
@@ -123,7 +166,7 @@ function Test(mess)
     if mess then building:doMess() end
 
     InitialiseBuildings()
-    print("highlightCells: " .. tostring(#highlightCells))
+    --print("highlightCells: " .. tostring(#highlightCells))
 end
 
 function Clean()
@@ -131,7 +174,7 @@ function Clean()
         building:clean()
     end
     for _, cell in ipairs(containerCells) do
-        cell:cleanContainer()
+        --cell:cleanContainer()
     end
 end
 
@@ -185,6 +228,18 @@ function TransferAll(player, container, pos)
     end
 end
 
+function TransferItem(player, item, container, pos)
+    local playerInv = player:getInventory()
+    if pos == nil then
+        table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
+    else
+        --is a integer
+        if type(pos) == "number" then
+            table.insert(actionQueue, pos, ISInventoryTransferAction:new(player, item, playerInv, container))
+        end
+    end
+end
+
 function Test2()
     InitialiseBuildings()
 
@@ -216,7 +271,7 @@ function Reset()
 end
 
 function DoCleaning()
-    Test(true)
+    Test(false)
     cleaning = true
 
     local player = getPlayer()
@@ -266,20 +321,22 @@ local function updateQueue()
             print("emptyQueueActive: " .. tostring(emptyQueueActive))
         end
 
-        --if playerInv full add moveto action to closest container and transfer all items
+        --if playerInv full add moveto action to best containers and transfer all items
         if playerInvWeight >= playerInvMaxWeight and not emptyQueueActive then
-            local playerSquare = getPlayerSquare(player)
-
-            local closestContainerCell, closestContainer, closestDistance = getClosestContainer(player)
-
-            if closestContainer and closestContainerCell then
-                MoveToLocation(player, closestContainerCell.square,1)
-                MoveToLocation(player, playerSquare,2)
-                TransferAll(player, closestContainer, 2)
-            end
-
             emptyQueueActive = true
             print("emptyQueueActive: " .. tostring(emptyQueueActive))
+
+            local items = playerInv:getItems()
+
+            for i = items:size() - 1, 0, -1 do
+                local item = items:get(i)
+                local bestContainerCell, bestContainer = getBestContainer(player, item)
+
+                if bestContainer and bestContainerCell then
+                    MoveToLocation(player, bestContainerCell.square,1)
+                    TransferItem(player, item, bestContainer, 2)
+                end
+            end
         else
             if #queue.queue == 0 and #actionQueue > 0 and not queue.isPlayerDoingAction(player) then
                 queue.add(actionQueue[1])
