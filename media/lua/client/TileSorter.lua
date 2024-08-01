@@ -174,7 +174,7 @@ function Clean()
         building:clean()
     end
     for _, cell in ipairs(containerCells) do
-        --cell:cleanContainer()
+        cell:cleanContainer()
     end
 end
 
@@ -217,6 +217,22 @@ function TransferAll(player, container, pos)
     for i = items:size() - 1, 0, -1 do
         local item = items:get(i)
         --print("Item: " .. tostring(item))
+        if not item:isEquipped() then
+            if pos == nil then
+                table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
+            else
+                --is a integer
+                if type(pos) == "number" then
+                    table.insert(actionQueue, pos, ISInventoryTransferAction:new(player, item, playerInv, container))
+                end
+            end
+        end
+    end
+end
+
+function TransferItem(player, item, container, pos)
+    local playerInv = player:getInventory()
+    if not item:isEquipped() then
         if pos == nil then
             table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
         else
@@ -225,18 +241,8 @@ function TransferAll(player, container, pos)
                 table.insert(actionQueue, pos, ISInventoryTransferAction:new(player, item, playerInv, container))
             end
         end
-    end
-end
-
-function TransferItem(player, item, container, pos)
-    local playerInv = player:getInventory()
-    if pos == nil then
-        table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
     else
-        --is a integer
-        if type(pos) == "number" then
-            table.insert(actionQueue, pos, ISInventoryTransferAction:new(player, item, playerInv, container))
-        end
+        print("Item is equipped")
     end
 end
 
@@ -271,7 +277,7 @@ function Reset()
 end
 
 function DoCleaning()
-    Test(false)
+    Test(true)
     cleaning = true
 
     local player = getPlayer()
