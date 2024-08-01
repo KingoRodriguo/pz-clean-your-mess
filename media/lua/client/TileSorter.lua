@@ -58,7 +58,7 @@ local function getBestContainer(player, item)
         if cell.container then
             --print("Container found: " .. tostring(cell.container))
             for _, categorie in pairs(cell.containerCategories) do
-                print("Container categorie name: " .. tostring(categorie))
+                --print("Container categorie name: " .. tostring(categorie))
                 local result = false
                 if categorie == itemCat then
                     result = true
@@ -68,17 +68,17 @@ local function getBestContainer(player, item)
                         currentBestContainerCell = cell
                     end
                 end
-                print("Container categorie contain item categorie: " .. tostring(result))
+                --print("Container categorie contain item categorie: " .. tostring(result))
             end
         else
-            print("No container found")
+            --print("No container found")
         end
     end
     if not currentBestContainer then
-        print("Closest container choosen")
+        --print("Closest container choosen")
         currentBestContainerCell, currentBestContainer = getClosestContainer(player)
     else
-        print("Best container choosen")
+        --print("Best container choosen")
     end
     return currentBestContainerCell, currentBestContainer
 end
@@ -213,11 +213,11 @@ function TransferAll(player, container, pos)
         return
     end
     --print("Items in inventory: " .. items:size())
-    print("Transferring all items to: " .. tostring(container))
+    --print("Transferring all items to: " .. tostring(container))
     for i = items:size() - 1, 0, -1 do
         local item = items:get(i)
         --print("Item: " .. tostring(item))
-        if not item:isEquipped() then
+        if not item:isEquipped() and not instanceof(item, "KeyRing") then
             if pos == nil then
                 table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
             else
@@ -232,7 +232,8 @@ end
 
 function TransferItem(player, item, container, pos)
     local playerInv = player:getInventory()
-    if not item:isEquipped() then
+    if not item:isEquipped() and not instanceof(item, "KeyRing") then
+        --print("Class: " ..tostring(item:getClass()))
         if pos == nil then
             table.insert(actionQueue, ISInventoryTransferAction:new(player, item, playerInv, container))
         else
@@ -242,7 +243,7 @@ function TransferItem(player, item, container, pos)
             end
         end
     else
-        print("Item is equipped")
+        --print("Item is equipped")
     end
 end
 
