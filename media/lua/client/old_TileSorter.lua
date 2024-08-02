@@ -5,9 +5,8 @@ containerCells = {}
 local actionQueue = {}
 
 local emptyQueueActive = false
-local cleaning = false
 
-local function getClosestContainer(player)
+local function getClosestContainer(player, item)
     local x, y, z = player:getX(), player:getY(), player:getZ()
     local playerSquare = getCell():getGridSquare(x, y, z)
 
@@ -19,8 +18,8 @@ local function getClosestContainer(player)
         local distance = 10000
         if cell.square then
             if cell.container then 
-                if cell.container:getCapacityWeight() > cell.container:getMaxWeight()*0.8 then
-                    print("Container is full")
+                if (cell.container:getCapacityWeight() + item:getActualWeight()) > cell.container:getMaxWeight() then
+                    --print("Container is full")
                     distance = 10000
                 else
                     distance = cell.square:DistTo(playerSquare) or distance
@@ -76,18 +75,11 @@ local function getBestContainer(player, item)
     end
     if not currentBestContainer then
         --print("Closest container choosen")
-        currentBestContainerCell, currentBestContainer = getClosestContainer(player)
+        currentBestContainerCell, currentBestContainer = getClosestContainer(player, item)
     else
         --print("Best container choosen")
     end
     return currentBestContainerCell, currentBestContainer
-end
-
-local function getPlayerSquare(player)
-    local x = player:getX()
-    local y = player:getY()
-    local z = player:getZ()
-    return getCell():getGridSquare(x, y, z)
 end
 
 local function MoveToLocation(player, toSquare, pos)
@@ -152,14 +144,15 @@ function Test(mess)
 
     highlightCells = {}
 
-    local player = getPlayer()
+    local player = getPlayer() 
+
     local x = player:getX()
     local y = player:getY()
     local z = player:getZ()
 
-    local startSquare = getCell():getGridSquare(x, y, z)
+    local startSquare = getPlayerSquare(player)
 
-    local building = Building:new(startSquare) 
+    local building = Building:new(startSquare)
 
     building:populate(x, y, z)
     table.insert(testList, building)
@@ -282,10 +275,7 @@ function DoCleaning()
     cleaning = true
 
     local player = getPlayer()
-    local x = player:getX()
-    local y = player:getY()
-    local z = player:getZ()
-    local startSquare = getCell():getGridSquare(x, y, z)
+    local startSquare = getPlayerSquare(player)
 
     for _, room in pairs(cleanList) do
         for _, cell in ipairs(room) do
@@ -335,13 +325,17 @@ local function updateQueue()
 
             local items = playerInv:getItems()
 
+            local playerSquare = getPlayerSquare(player)   
+
+            MoveToLocation(player, playerSquare,1)
+
             for i = items:size() - 1, 0, -1 do
                 local item = items:get(i)
                 local bestContainerCell, bestContainer = getBestContainer(player, item)
 
                 if bestContainer and bestContainerCell then
+                    TransferItem(player, item, bestContainer, 1)
                     MoveToLocation(player, bestContainerCell.square,1)
-                    TransferItem(player, item, bestContainer, 2)
                 end
             end
         else

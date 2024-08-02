@@ -1,0 +1,48 @@
+Cleaning process
+
+[START]
+1. Check if player is in a building
+    -- If not [END:NO BUILDING]
+2. Get Building container
+    -- If not [END: NO CONTAINERS]
+3. Get Cell to clean
+    -- If not [END: NOTHING TO CLEAN]
+
+[CLEANING]
+1. Is player full ?
+    -- If yes go to [EMPTY INVENTORY]
+2. Check if there is cell to be cleaned
+    -- If not go to [END:NOTHING TO CLEAN]
+3. Move to closest Cell
+4. Take item until full or cell empty 
+    -- If Cell empty go to [CLEANING:2]
+    -- If Full go to [EMPTY INVENTORY]
+
+[EMPTY INVENTORY]
+1. Check for container
+    -- If not [END: NO CONTAINERS]
+2. Check for item in Inventory
+    -- If item:equipped SKIP
+    -- If nothing go to [CLEANING]
+3. get [BEST CONTAINER(ITEM)]
+    -- If not BEST CONTAINER = CLOSEST CONTAINER
+
+[BEST CONTAINER(ITEM)]
+1. Is container + item = container full
+    -- If yes :
+        -- remoce container from available container
+        -- get next container
+            --If not next bo to [END: ALL CONTAINERS FULL]
+        -- go to [BEST CONTAINER(ITEM)]
+2. Can move to container ?
+    -- If not get closest available tile to container
+3. Move to container
+4. Put item into container
+5. Go to [EMPTY INVENTORY:2]
+
+[END]
+NO BUILDING.
+NOTHING TO CLEAN.
+NO CONTAINERS.
+ALL CONTAINERS FULL.
+ACTION CANCELED.
