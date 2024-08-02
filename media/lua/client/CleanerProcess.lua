@@ -354,13 +354,21 @@ local function getNextAction()
     end
 end
 
+local function forceStop()
+    isEnabled = false
+    resetCleaner()
+end
+
 local function UpdateCleaner()
---[[     for _, cell in pairs(dirtyCells) do
-        DB_AddHighLightCell(cell)
-    end ]]
     if not isEnabled then return end
     if queue == nil then return end
     if player == nil then return end
+
+    if player:pressedMovement(false) or player:pressedCancelAction() then
+        forceStop()
+        return
+    end
+
     --if _DB then DB_Log("Queue size: " ..#queue.queue, "Info") end
     if #queue.queue == 0 and not queue.isPlayerDoingAction(player) then
         --if _DB then DB_Log("Cleaner is running", "Info") end
