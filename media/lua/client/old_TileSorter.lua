@@ -1,4 +1,4 @@
-testList = {}
+--[[ testList = {}
 cleanList = {}
 containerCells = {}
 
@@ -352,4 +352,4 @@ local function updateQueue()
     end
 end
 
-Events.OnTick.Add(updateQueue)
+Events.OnTick.Add(updateQueue) ]]

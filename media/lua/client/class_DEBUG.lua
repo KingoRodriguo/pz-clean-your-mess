@@ -1,6 +1,6 @@
 -- DB
 ---------------------------------------------
-local DB_GENERAL_ENABLED = true
+local DB_GENERAL_ENABLED = false
 
 -- File DB mode
 ---------------------------------------------
@@ -11,7 +11,7 @@ local DB_DEBUG_ENABLED = true
 
 -- Local data
 ---------------------------------------------
-local DB_HIGHLIGHT = true
+local DB_HIGHLIGHT = false
 local DB_HIGHLIGHT_CELLS = {}
 
 local DB = {}
@@ -73,7 +73,7 @@ end
 
 function DB_AddHighLightCell(cell)
     if not cell then return end
-    if DB_DEBUG_ENABLED then DB_Log("Adding Cell to HighLight", "Info") end
+    if DB_HIGHLIGHT then DB_Log("Adding Cell to HighLight", "Info") end
     table.insert(DB_HIGHLIGHT_CELLS, cell)
 end
 
@@ -90,11 +90,10 @@ local function RenderHighLights()
     local cells = DB_GetHighLightCells()
 
     for _, cell in ipairs(cells) do
-        local hc = getCore():getGoodHighlitedColor()
-        local r,g,b = hc:getRedFloat(), hc:getGreenFloat(), hc:getBlueFloat()
+        local r,g,b = 1,1,1
         local floorSprite = IsoSprite.new()
         floorSprite:LoadFramesNoDirPageSimple("media/ui/FloorHighlight.png")
-        floorSprite:RenderGhostTileAlpha(cell.x, cell.y, cell.z, r, g, b, 0.5)
+        floorSprite:RenderGhostTileColor(cell.x, cell.y, cell.z, r, g, b, 0.5)
     end
 end
 
