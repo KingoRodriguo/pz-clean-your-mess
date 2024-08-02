@@ -398,7 +398,7 @@ end
 -- Global functions
 ---------------------------------------------
 
-function CleanYourMess()
+function CleanYourMess(start_square)
     --Startup procedure
     if isEnabled then
         if _DB then DB_Log("Cleaner is already enabled", "Info") end
@@ -410,9 +410,6 @@ function CleanYourMess()
     player = getPlayer()
     inventory = player:getInventory()
     queue = ISTimedActionQueue.getTimedActionQueue(player)
-
-    -- Setup for starting to clean
-    local start_square = getPlayerSquare(player)
 
     -- Check if start_square is nil
     if not start_square then
@@ -454,4 +451,18 @@ function CleanYourMess()
     isEnabled = true
 end
 
+-- Events
+---------------------------------------------
+
+local function createContextOption(player, context, worldObjects, test)
+    local object = worldObjects[1]
+    local x,y,z = object:getX(), object:getY(), object:getZ()
+    local square = getCell():getGridSquare(x, y, z)
+    if square:getRoom() == nil then return end
+    local _mainMenu = context:addOption("Clean the mess", worldObjects, function() 
+        CleanYourMess(square)
+    end)
+end
+
 Events.OnTick.Add(UpdateCleaner)
+Events.OnFillWorldObjectContextMenu.Add(createContextOption)
