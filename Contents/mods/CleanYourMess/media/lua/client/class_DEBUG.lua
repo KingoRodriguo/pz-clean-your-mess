@@ -4,10 +4,10 @@ local DB_GENERAL_ENABLED = false
 
 -- File DB mode
 ---------------------------------------------
-local DB_BUILDING_ENABLED = true
-local DB_CELL_ENABLED = true
-local DB_CLEANER_ENABLED = true
-local DB_DEBUG_ENABLED = true
+local DB_BUILDING_ENABLED = false
+local DB_CELL_ENABLED = false
+local DB_CLEANER_ENABLED = false
+local DB_DEBUG_ENABLED = false
 
 -- Local data
 ---------------------------------------------
