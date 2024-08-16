@@ -115,6 +115,12 @@ local function getEquippedWeight(player)
     return weight
 end
 
+local function getClosestContainer(item)
+end
+
+local function getBestContainer(item)
+end
+
 --- #endregion Local functions
 
 --- #region CYM functions
@@ -183,9 +189,9 @@ function CYM:getNextAction()
         
         if #buildingItems == 0 then -- no items to clean
             if CYM.data.player:getInventory():getCapacityWeight() > getEquippedWeight(CYM.data.player) then -- inventory contain item to store
-                nextState = CYM.State.storing
+                CYM.data.currentState = CYM.State.storing
             else -- inventory dont contain item to store
-                nextState = CYM.State.ending
+                CYM.data.currentState = CYM.State.ending
             end
         else -- items to clean
             -- get all items in the building
@@ -240,14 +246,22 @@ function CYM:getNextAction()
     elseif CYM.data.currentState == CYM.State.storing then
 
         -- if player inventory contain only equipped switch to cleaning
-
-        -- get all items in the inventory
-
-        if CYM.config.heaviestItemFirst then
-            -- sort items by weight
+        if CYM.data.player:getInventory():getCapacityWeight() == getEquippedWeight(CYM.data.player) then
+            CYM.data.currentState = CYM.State.cleaning
+            CYM.ActionState = CYM.ActionState.skip
+            return
         end
 
-        -- select first item
+        -- get all items in the inventory
+        local inventoryItems = CYM.data.player:getInventory():getItems()
+        local sortedItems = {}
+
+        if CYM.config.heaviestItemFirst then
+            sortedItems = table.sort(inventoryItems, function(a, b) return a:getActualWeigh() > b:getActualWeigh() end)
+        end
+
+        local currentItemSelection = sortedItems[1]
+        local container = nil
 
         if CYM.config.storeInBestContainer then
             -- get the best container to store the item
@@ -255,6 +269,13 @@ function CYM:getNextAction()
             -- get the closest container to store the item
         end
 
+        if not container then -- no container to store the item
+            CYM.data.currentState = CYM.State.ending
+            return
+        end
+
+        local playerPosKey = CYM.data.player:getX() .. "," .. CYM.data.player:getY() .. "," .. CYM.data.player:getZ()
+        local containerPosKey = ""
         if CYM.config.moveToContainer then
             -- move to the container
         end
@@ -262,10 +283,6 @@ function CYM:getNextAction()
         -- store the item
         -- repeat
     end
-
-    CYM.data.currentState = nextState
-    CYM.data.currentActionState = nextActionState
-    return nextAction
 end
 
 --- #endregion
