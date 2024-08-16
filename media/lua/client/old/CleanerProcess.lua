@@ -5,7 +5,7 @@ require "class_Building"
 
 -- DB Data
 ---------------------------------------------
-local _DB = DB_GetDBMode("Cleaner")
+--local _DB = DB_GetDBMode("Cleaner")
 
 -- local data
 ---------------------------------------------
