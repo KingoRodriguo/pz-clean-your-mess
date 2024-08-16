@@ -91,6 +91,16 @@ function CYM_UpdateCleaner()
         else CYM.data.playerQueue.add(nextAction) end -- Add the next action to the queue
     end
 end
+
+function CYM_createContextOption(player, context, worldObjects, test)
+    local object = worldObjects[1]
+    local x,y,z = object:getX(), object:getY(), object:getZ()
+    local square = getCell():getGridSquare(x, y, z)
+    if square:getRoom() == nil then return end
+    local _mainMenu = context:addOption("Clean the mess", worldObjects, function() 
+        CYM:start(square)
+    end)
+end
 --- #endregion
 
 --- #region Local Functions

@@ -534,8 +534,6 @@ local function createContextOption(player, context, worldObjects, test)
     end)
 end
 
-Events.OnTick.Add(UpdateCleaner)
-Events.OnFillWorldObjectContextMenu.Add(createContextOption)
 
 function fillInventory()
     local MAXSplit = 50
