@@ -65,10 +65,10 @@ CYM.ActionState = {
 
 --- #endregion
 
---- #region Local Functions
+--- #region Global Functions
     
 -- Update the cleaner
-local function UpdateCleaner()
+function CYM_UpdateCleaner()
     if not CYM.data.isRunning then return end
     if not CYM.data.player then return end
     if not CYM.data.playerQueue then return end
@@ -217,9 +217,4 @@ function CYM:getNextAction()
     return nextAction
 end
 
---- #endregion
-
---- #region EVENTS
-
-Events.OnTick.Add(UpdateCleaner)
 --- #endregion
