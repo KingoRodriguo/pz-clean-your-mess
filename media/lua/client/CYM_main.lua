@@ -65,44 +65,6 @@ CYM.ActionState = {
 
 --- #endregion
 
---- #region Global Functions
-    
--- Update the cleaner
-function CYM_UpdateCleaner()
-    if not CYM.data.isRunning then return end
-    if not CYM.data.player then return end
-    if not CYM.data.playerQueue then return end
-
-    -- Check if the player is moving or cancel the action
-    if CYM.data.player:pressedMovement(false) or CYM.data.player:pressedCancelAction() then
-        CYM:stop()
-        return
-    end
-
-    -- Check if player TimedActionQueue is empty and player is not doing an action
-    if #CYM.data.playerQueue.queue == 0 and #CYM.data.playerQueue.isPlayerDoingAction(CYM.data.player) then
-        local nextAction = CYM:getNextAction()
-
-        if CYM.data.currentActionState == CYM.ActionState.skip then
-            CYM.data.currentActionState = CYM.ActionState.perform
-            return
-        elseif CYM.data.currentState == CYM.State.ending then CYM:stop() return -- Stop the cleaner
-        elseif not nextAction then CYM:stop() return -- Action is not valid 
-        else CYM.data.playerQueue.add(nextAction) end -- Add the next action to the queue
-    end
-end
-
-function CYM_createContextOption(player, context, worldObjects, test)
-    local object = worldObjects[1]
-    local x,y,z = object:getX(), object:getY(), object:getZ()
-    local square = getCell():getGridSquare(x, y, z)
-    if square:getRoom() == nil then return end
-    local _mainMenu = context:addOption("Clean the mess", worldObjects, function() 
-        CYM:start(square)
-    end)
-end
---- #endregion
-
 --- #region Local Functions
 
 local function getDistance(x1, y1, z1, x2, y2, z2)
@@ -113,7 +75,7 @@ end
 
 local function getEquippedWeight(player)
     local inventory = player:getInventory()
-    local items = inventory:getItems()
+    local items = table.convertToTable(inventory:getItems())
     local weight = 0
 
     for i = 1, #items do
@@ -126,7 +88,9 @@ local function getEquippedWeight(player)
 end
 
 local function isValidContainer(container, item)
-    if container:getCapacityWeight() + item:getActualWeight() > container:getMaxWeight() then return false else return true end
+    local result = false
+    if container:getCapacityWeight() + item:getActualWeight() < container:getMaxWeight() then result = true end
+    return result
 end
 
 local function getClosestContainer(item)
@@ -209,6 +173,45 @@ end
 
 --- #endregion Local functions
 
+--- #region Global Functions
+    
+-- Update the cleaner
+function CYM_UpdateCleaner()
+    if not CYM.data.isRunning then return end
+    if not CYM.data.player then return end
+    if not CYM.data.playerQueue then return end
+
+    -- Check if the player is moving or cancel the action
+    if CYM.data.player:pressedMovement(false) or CYM.data.player:pressedCancelAction() then
+        print("CYM: Player is moving or cancel the action")
+        CYM:stop()
+        return
+    end
+
+    -- Check if player TimedActionQueue is empty and player is not doing an action
+    if #CYM.data.playerQueue.queue == 0 and not CYM.data.playerQueue.isPlayerDoingAction(CYM.data.player) then
+        local nextAction = CYM:getNextAction()
+
+        if CYM.data.currentActionState == CYM.ActionState.skip then
+            CYM.data.currentActionState = CYM.ActionState.perform
+            return
+        elseif CYM.data.currentState == CYM.State.ending then CYM:stop() return -- Stop the cleaner
+        elseif not nextAction then return -- Action is not valid 
+        else CYM.data.playerQueue.add(nextAction) end -- Add the next action to the queue
+    end
+end
+
+function CYM_createContextOption(player, context, worldObjects, test)
+    local object = worldObjects[1]
+    local x,y,z = object:getX(), object:getY(), object:getZ()
+    local square = getCell():getGridSquare(x, y, z)
+    if square:getRoom() == nil then return end
+    local _mainMenu = context:addOption("Clean the mess", worldObjects, function() 
+        CYM:start(square)
+    end)
+end
+--- #endregion
+
 --- #region CYM functions
 
 -- reset the CYM data
@@ -245,7 +248,7 @@ function CYM:start(start_square)
     -- set CYM starting value
     CYM.data.isRunning = true
     CYM.data.isPaused = false
-    CYM.data.currentState = CYM.State.running
+    CYM.data.currentState = CYM.State.cleaning
     CYM.data.player = getPlayer()
     CYM.data.playerQueue = ISTimedActionQueue.getTimedActionQueue(CYM.data.player)
 
@@ -273,60 +276,92 @@ function CYM:getNextAction()
     local nextActionState = CYM.data.currentActionState
 
     if CYM.data.currentState == CYM.State.cleaning then
-        
+        print("CYM: Cleaning")
         local buildingItems = CYM.data.extended_IsoBuilding:getItems()
         
         if #buildingItems == 0 then -- no items to clean
+            print("CYM: No items to clean")
             if CYM.data.player:getInventory():getCapacityWeight() > getEquippedWeight(CYM.data.player) then -- inventory contain item to store
                 CYM.data.currentState = CYM.State.storing
+                print("CYM: Switch to storing")
+                return
             else -- inventory dont contain item to store
                 CYM.data.currentState = CYM.State.ending
+                print("CYM: Switch to ending")
+                return
             end
         else -- items to clean
+            print("CYM: Items to clean")
             -- get all items in the building
             local itemsSquares = CYM.data.extended_IsoBuilding:getSquaresWithItems()
             local sortedSquares = {}
 
             for i = 1, #itemsSquares do
                 local square = itemsSquares[i]
-                local item = square:getWorldObjects():get(0)
+                local items = square:getItems()
+                local item = nil
                 local distance = getDistance(CYM.data.player:getX(), CYM.data.player:getY(), CYM.data.player:getZ(), square.IsoGridSquare:getX(), square.IsoGridSquare:getY(), square.IsoGridSquare:getZ())
-                table.insert(sortedSquares, {extendedSquare = square, item = item, distance = distance})
+                for j = 1, #items do
+                    item = items[j]
+                    table.insert(sortedSquares, {extendedSquare = square, item = item, distance = distance})
+                end
             end
 
             if not CYM.config.exceedWeightLimit then
+                print("CYM: Exceed weight limit false")
                 -- remove items that can't fit in the inventory
                for i = #sortedSquares, 1 ,-1 do
                     local square = sortedSquares[i]
-                    if CYM.data.player:getInventory():getCapacityWeight() < CYM.data.playerEquippedWeight + square.item:getWeight() then
+                    local invCapacity = CYM.data.player:getInventory():getCapacityWeight()
+                    if not invCapacity then print("invCapacity is nil") end
+                    local invMaxWeight = CYM.data.player:getInventory():getMaxWeight()
+                    if not invMaxWeight then print("invMaxWeight is nil") end
+                    local itemWeight = square.item:getItem():getActualWeight()
+                    if not itemWeight then print("itemWeight is nil") end
+
+                    if invCapacity + itemWeight > invMaxWeight then
                         table.remove(sortedSquares, i)
                     end
                end
             end
 
+            if #sortedSquares == 0 then -- no room in inventory
+                print("CYM: No more room in inventory")
+                CYM.data.currentState = CYM.State.storing
+                print("CYM: Switch to storing")
+                return
+            end
+
             if CYM.config.heaviestItemFirst then
-                sortedSquares = table.sort(sortedSquares, function(a, b) return a.item:getWeight() > b.item:getWeight() end)
+                print("CYM: Heaviest item first")
+                sortedSquares = table.sort(sortedSquares, function(a, b) return a.item:getItem():getActualWeight() > b.item:getItem():getActualWeight() end)
             else
+                print("CYM: Closest item first")
                 sortedSquares = table.sort(sortedSquares, function(a, b) return a.distance < b.distance end)
             end
 
             local currentItemSelection = sortedSquares[1]
-
-            local playerPosKey = CYM.data.player:getX() .. "," .. CYM.data.player:getY() .. "," .. CYM.data.player:getZ()
-            local itemPosKey = currentItemSelection.extendedSquare.IsoGridSquare:getX() .. "," .. currentItemSelection.extendedSquare.IsoGridSquare:getY() .. "," .. currentItemSelection.extendedSquare.IsoGridSquare:getZ()
+            local playerSquare = CYM.data.player:getCurrentSquare()
+            local moveSquare = currentItemSelection.extendedSquare.IsoGridSquare
+            local adjacentSquare = AdjacentFreeTileFinder.Find(moveSquare, CYM.data.player)
 
             -- if player square is different from currentItemSelection.extendedSquare.IsoGridSquare
-            if playerPosKey ~= itemPosKey and CYM.config.moveToItem then
+            local isPlayerOnItem = (playerSquare == moveSquare) or (playerSquare == adjacentSquare)
+            if not isPlayerOnItem and CYM.config.moveToItem then
+                print("CYM: Move to item")
                 -- move to currentItemSelection.extendedSquare.IsoGridSquare or the closest valid square
-                local moveSquare = currentItemSelection.extendedSquare.IsoGridSquare
                 if not moveSquare:isSolidTrans() then
-                    moveSquare = AdjacentFreeTileFinder.Find(moveSquare, CYM.data.player)
+                    print("CYM: Move to closest valid square")
+                    moveSquare = adjacentSquare
                 end
                 nextAction = ISWalkToTimedAction:new(CYM.data.player, moveSquare)
                 return nextAction
+            else
+                print("CYM: Player is on item")
             end
 
             -- take currentItemSelection.item
+            print("CYM: Grab item")
             local time = ISWorldObjectContextMenu.grabItemTime(CYM.data.player, currentItemSelection.item)
             nextAction = ISGrabItemAction:new(CYM.data.player, currentItemSelection.item, time)
             return nextAction
@@ -336,13 +371,15 @@ function CYM:getNextAction()
 
         -- if player inventory contain only equipped switch to cleaning
         if CYM.data.player:getInventory():getCapacityWeight() == getEquippedWeight(CYM.data.player) then
+            print("CYM: player inventory contain only equipped items")
+            print("CYM: Switch to cleaning")
             CYM.data.currentState = CYM.State.cleaning
             CYM.ActionState = CYM.ActionState.skip
             return
         end
 
         -- get all items in the inventory
-        local inventoryItems = CYM.data.player:getInventory():getItems()
+        local inventoryItems = table.convertToTable(CYM.data.player:getInventory():getItems())
         local sortedItems = {}
 
         -- remove equipped items or key ring
@@ -351,42 +388,66 @@ function CYM:getNextAction()
             if not item:isEquipped() and not instanceof(item, "KeyRing") then
                 table.insert(sortedItems, item)
             end
-        end        
+        end
+        
+        if #sortedItems == 0 then -- no items to store
+            print("CYM: No items to store")
+            print("CYM: Switch to cleaning")
+            CYM.data.currentState = CYM.State.cleaning
+            return
+        end
 
         if CYM.config.heaviestItemFirst then
-            sortedItems = table.sort(inventoryItems, function(a, b) return a:getActualWeigh() > b:getActualWeigh() end)
+            print("CYM: Heaviest item first")
+            sortedItems = table.sort(sortedItems, function(a, b) return a:getActualWeight() > b:getActualWeight() end)
         end
 
         local currentItemSelection = sortedItems[1]
         local containerData = nil
 
         if CYM.config.storeInBestContainer then
+            print("Best container")
             containerData = getBestContainer(currentItemSelection)
         else
+            print("Closest container")
             containerData = getClosestContainer(currentItemSelection)
         end
 
         if not containerData then -- no container to store the item
+            print("CYM: No container to store the item")
+            print("CYM: Switch to ending")
             CYM.data.currentState = CYM.State.ending
             return
         end
-        local containerSquare = containerData.square
+        local playerSquare = CYM.data.player:getCurrentSquare()
+        local containerSquare = containerData.square.IsoGridSquare
+        local adjacentSquare = AdjacentFreeTileFinder.Find(containerSquare, CYM.data.player)
 
-        local playerPosKey = CYM.data.player:getX() .. "," .. CYM.data.player:getY() .. "," .. CYM.data.player:getZ()
-        local containerPosKey = containerSquare:getX() .. "," .. containerSquare:getY() .. "," .. containerSquare:getZ()
+        local isPlayerOnContainer = (playerSquare == containerSquare) or (playerSquare == adjacentSquare)
 
         -- if player square is different from containerSquare
-        if playerPosKey ~= containerPosKey and CYM.config.moveToContainer then
+        if not isPlayerOnContainer and CYM.config.moveToContainer then
+            print("CYM: Move to container")
             -- move to containerSquare or the closest valid square
             local moveSquare = containerSquare
             if not moveSquare:isSolidTrans() then
-                moveSquare = AdjacentFreeTileFinder.Find(moveSquare, CYM.data.player)
+                moveSquare = adjacentSquare
             end
             nextAction = ISWalkToTimedAction:new(CYM.data.player, moveSquare)
             return nextAction
+        else
+            print("CYM: Player is on container")
+        end
+
+        if not isValidContainer(containerData.container, currentItemSelection) then
+            print("CYM: Container is full")
+            print("CYM: Switch to ending")
+            CYM.data.currentState = CYM.State.ending
+            return
         end
 
         -- store the item
+        print("CYM: Store item")
         nextAction = ISInventoryTransferAction:new(CYM.data.player, currentItemSelection, currentItemSelection:getContainer(), containerData.container)
         return nextAction
     end
