@@ -22,7 +22,6 @@ CYM.data = {
 
     player = nil,
     playerQueue = {},
-    playerEquippedWeight = 0,
 
     startTime = 0,
     endTime = 0,
@@ -33,6 +32,7 @@ CYM.data = {
 
 CYM.config = {
     heaviestItemFirst = true,
+    currentFloorFirst = true,
     exceedWeightLimit = false,
 
     storeInBestContainer = true,
@@ -92,6 +92,30 @@ function CYM_UpdateCleaner()
     end
 end
 --- #endregion
+
+--- #region Local Functions
+
+local function getDistance(x1, y1, z1, x2, y2, z2)
+    z1 = z1 * 100 -- ensure that different floors are not considered as close
+    z2 = z2 * 100
+    return math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2 + (z2 - z1) ^ 2)
+end
+
+local function getEquippedWeight(player)
+    local inventory = player:getInventory()
+    local items = inventory:getItems()
+    local weight = 0
+
+    for i = 1, #items do
+        local item = items[i]
+        if item:isEquipped() then
+            weight = weight + item:getActualWeight()
+        end
+    end
+    return weight
+end
+
+--- #endregion Local functions
 
 --- #region CYM functions
 
@@ -158,32 +182,59 @@ function CYM:getNextAction()
         local buildingItems = CYM.data.extended_IsoBuilding:getItems()
         
         if #buildingItems == 0 then -- no items to clean
-            if CYM.data.player:getInventory():getCapacityWeight() > CYM.data.playerEquippedWeight then -- inventory contain item to store
+            if CYM.data.player:getInventory():getCapacityWeight() > getEquippedWeight(CYM.data.player) then -- inventory contain item to store
                 nextState = CYM.State.storing
             else -- inventory dont contain item to store
                 nextState = CYM.State.ending
             end
         else -- items to clean
             -- get all items in the building
+            local itemsSquares = CYM.data.extended_IsoBuilding:getSquaresWithItems()
+            local sortedSquares = {}
+
+            for i = 1, #itemsSquares do
+                local square = itemsSquares[i]
+                local item = square:getWorldObjects():get(0)
+                local distance = getDistance(CYM.data.player:getX(), CYM.data.player:getY(), CYM.data.player:getZ(), square.IsoGridSquare:getX(), square.IsoGridSquare:getY(), square.IsoGridSquare:getZ())
+                table.insert(sortedSquares, {extendedSquare = square, item = item, distance = distance})
+            end
 
             if not CYM.config.exceedWeightLimit then
                 -- remove items that can't fit in the inventory
+               for i = #sortedSquares, 1 ,-1 do
+                    local square = sortedSquares[i]
+                    if CYM.data.player:getInventory():getCapacityWeight() < CYM.data.playerEquippedWeight + square.item:getWeight() then
+                        table.remove(sortedSquares, i)
+                    end
+               end
             end
 
             if CYM.config.heaviestItemFirst then
-                -- sort items by weight
+                sortedSquares = table.sort(sortedSquares, function(a, b) return a.item:getWeight() > b.item:getWeight() end)
             else
-                -- sort items by distance
+                sortedSquares = table.sort(sortedSquares, function(a, b) return a.distance < b.distance end)
             end
 
-            -- select first item
+            local currentItemSelection = sortedSquares[1]
 
-            if CYM.config.moveToItem then
-                -- move to the item
+            local playerPosKey = CYM.data.player:getX() .. "," .. CYM.data.player:getY() .. "," .. CYM.data.player:getZ()
+            local itemPosKey = currentItemSelection.extendedSquare.IsoGridSquare:getX() .. "," .. currentItemSelection.extendedSquare.IsoGridSquare:getY() .. "," .. currentItemSelection.extendedSquare.IsoGridSquare:getZ()
+
+            -- if player square is different from currentItemSelection.extendedSquare.IsoGridSquare
+            if playerPosKey ~= itemPosKey and CYM.config.moveToItem then
+                -- move to currentItemSelection.extendedSquare.IsoGridSquare or the closest valid square
+                local moveSquare = currentItemSelection.extendedSquare.IsoGridSquare
+                if not moveSquare:isSolidTrans() then
+                    moveSquare = AdjacentFreeTileFinder.Find(moveSquare, CYM.data.player)
+                end
+                nextAction = ISWalkToTimedAction:new(CYM.data.player, moveSquare)
+                return nextAction
             end
 
-            -- take the item
-            -- repeat
+            -- take currentItemSelection.item
+            local time = ISWorldObjectContextMenu.grabItemTime(CYM.data.player, currentItemSelection.item)
+            nextAction = ISGrabItemAction:new(CYM.data.player, currentItemSelection.item, time)
+            return nextAction
         end
         
     elseif CYM.data.currentState == CYM.State.storing then
