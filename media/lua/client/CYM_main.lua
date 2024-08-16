@@ -115,10 +115,86 @@ local function getEquippedWeight(player)
     return weight
 end
 
+local function isValidContainer(container, item)
+    if container:getCapacityWeight() + item:getActualWeight() > container:getMaxWeight() then return false else return true end
+end
+
 local function getClosestContainer(item)
+    local containerSquares = CYM.data.extended_IsoBuilding:getContainerSquares()
+    local validContainerSquares = {}
+    
+    for i = 1, #containerSquares do -- get valid container squares
+        local square = containerSquares[i]
+        local squareContainers = square:getContainers()
+        for j = 1, #squareContainers do
+            if isValidContainer(squareContainers[j], item) then
+                table.insert(validContainerSquares, {
+                    square = square, 
+                    container = squareContainers[j], 
+                    distance = getDistance(CYM.data.player:getX(), CYM.data.player:getY(), CYM.data.player:getZ(), 
+                        square.IsoGridSquare:getX(), square.IsoGridSquare:getY(), square.IsoGridSquare:getZ())
+                })
+            end
+        end
+    end
+
+    -- get the closest valid container from the player
+    validContainerSquares = table.sort(validContainerSquares, function(a, b) return a.distance < b.distance end)
+
+    return validContainerSquares[1] or nil
 end
 
 local function getBestContainer(item)
+    local containerSquares = CYM.data.extended_IsoBuilding:getContainerSquares()
+    local validContainerSquares = {}
+    local choosenContainer = nil
+
+    for i = 1, #containerSquares do -- get valid container squares
+        local square = containerSquares[i]
+        local squareContainers = square:getContainers()
+        for j = 1, #squareContainers do
+            if isValidContainer(squareContainers[j], item) then
+                table.insert(validContainerSquares, {
+                    square = square, 
+                    container = squareContainers[j], 
+                    distance = getDistance(CYM.data.player:getX(), CYM.data.player:getY(), CYM.data.player:getZ(), 
+                        square.IsoGridSquare:getX(), square.IsoGridSquare:getY(), square.IsoGridSquare:getZ())
+                })
+            end
+        end
+    end
+ 
+    if CYM.data.MC_Active then -- Manage Containers compatibility
+        -- get the closest valid container from Manage Containers
+    end
+    if not choosenContainer and CYM.data.SS_Active then -- Smarter Storage compatibility
+        local SS_Squares = {}
+        -- get the closest valid container from Smarter Storage
+        for i = 1 , #validContainerSquares do
+            local containerData = validContainerSquares[i]
+            local container = containerData.container
+            local container_ModData = container:getParent():getModData() or nil
+            local SS_Name = container_ModData.SmarterStorage_Name or nil
+            local SS_Icon = container_ModData.SmarterStorage_Icon or nil
+
+            if SS_Icon then 
+                local itemIcon = InventoryItemFactory.CreateItem(SS_Icon)
+                if itemIcon then
+                    local containerCategory = itemIcon:getDisplayCategory()
+                    if (containerCategory == item:getDisplayCategory()) or (SS_Name == item:getDisplayCategory()) then
+                        table.insert(SS_Squares, containerData)
+                    end
+                end
+            end
+        end
+        SS_Squares = table.sort(SS_Squares, function(a, b) return a.distance < b.distance end)
+        choosenContainer = SS_Squares[1] or nil
+    end
+    if not choosenContainer then -- regular closest container
+        -- get the closest valid container from the player
+        choosenContainer = getClosestContainer(item)
+    end
+    return choosenContainer
 end
 
 --- #endregion Local functions
@@ -162,6 +238,9 @@ function CYM:start(start_square)
     CYM.data.currentState = CYM.State.running
     CYM.data.player = getPlayer()
     CYM.data.playerQueue = ISTimedActionQueue.getTimedActionQueue(CYM.data.player)
+
+    CYM.data.SS_Active = CYM_Compat.SmarterStorage
+    CYM.data.MC_Active = CYM_Compat.ManageContainers
 
     print("CYM started")
 end
@@ -256,32 +335,50 @@ function CYM:getNextAction()
         local inventoryItems = CYM.data.player:getInventory():getItems()
         local sortedItems = {}
 
+        -- remove equipped items or key ring
+        for i = 1, #inventoryItems do
+            local item = inventoryItems[i]
+            if not item:isEquipped() and not instanceof(item, "KeyRing") then
+                table.insert(sortedItems, item)
+            end
+        end        
+
         if CYM.config.heaviestItemFirst then
             sortedItems = table.sort(inventoryItems, function(a, b) return a:getActualWeigh() > b:getActualWeigh() end)
         end
 
         local currentItemSelection = sortedItems[1]
-        local container = nil
+        local containerData = nil
 
         if CYM.config.storeInBestContainer then
-            -- get the best container to store the item
+            containerData = getBestContainer(currentItemSelection)
         else
-            -- get the closest container to store the item
+            containerData = getClosestContainer(currentItemSelection)
         end
 
-        if not container then -- no container to store the item
+        if not containerData then -- no container to store the item
             CYM.data.currentState = CYM.State.ending
             return
         end
+        local containerSquare = containerData.square
 
         local playerPosKey = CYM.data.player:getX() .. "," .. CYM.data.player:getY() .. "," .. CYM.data.player:getZ()
-        local containerPosKey = ""
-        if CYM.config.moveToContainer then
-            -- move to the container
+        local containerPosKey = containerSquare:getX() .. "," .. containerSquare:getY() .. "," .. containerSquare:getZ()
+
+        -- if player square is different from containerSquare
+        if playerPosKey ~= containerPosKey and CYM.config.moveToContainer then
+            -- move to containerSquare or the closest valid square
+            local moveSquare = containerSquare
+            if not moveSquare:isSolidTrans() then
+                moveSquare = AdjacentFreeTileFinder.Find(moveSquare, CYM.data.player)
+            end
+            nextAction = ISWalkToTimedAction:new(CYM.data.player, moveSquare)
+            return nextAction
         end
 
         -- store the item
-        -- repeat
+        nextAction = ISInventoryTransferAction:new(CYM.data.player, currentItemSelection, currentItemSelection:getContainer(), containerData.container)
+        return nextAction
     end
 end
 
