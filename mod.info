@@ -3,3 +3,4 @@ id=CYM
 description=Tool for easy cleaning of your places
 poster=preview.png
 icon=icon.png
+require=RodriguoFramework

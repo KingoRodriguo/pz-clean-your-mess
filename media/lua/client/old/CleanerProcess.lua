@@ -112,6 +112,60 @@ local function getClosestCell(player, cells)
     return closestCell
 end
 
+local function getSSCell(cells, item)
+    local SS_cells = nil
+    for i = #cells, 1, -1 do
+        local cell = cells[i]
+        local container = cell:GetCellContainer()
+        local container_ModData = container:getParent():getModData() or nil
+        local SS_Name = container_ModData.SmarterStorage_Name or nil
+        local SS_Icon = container_ModData.SmarterStorage_Icon or nil
+        if SS_Icon then 
+            local itemIcon = InventoryItemFactory.CreateItem(SS_Icon)
+            if itemIcon then
+                local containerCategory = itemIcon:getDisplayCategory()
+                if (containerCategory == item:getDisplayCategory()) or (SS_Name == item:getDisplayCategory()) then
+                    if not SS_cells then SS_cells = {} end
+                    table.insert(SS_cells, cell)
+                end
+            end
+        end
+    end
+    return SS_cells
+end
+
+local function getValidContainerCells(cells, item)
+    local validContainerCells = {}
+    for i = 1, #cells do
+        local cell = cells[i]
+        local container = cell:GetCellContainer()
+        if not container or (container:getCapacityWeight() + item:getActualWeight()) > container:getMaxWeight() then
+        else
+            table.insert(validContainerCells, cell)
+        end
+    end
+    return validContainerCells
+end
+
+-- remove elements from tbl2 that are in tbl1
+local function subTable(tbl1, tbl2)
+    local tbl = {}
+    for i = 1, #tbl2 do
+        local element = tbl2[i]
+        local found = false
+        for j = 1, #tbl1 do
+            if tbl1[j] == element then
+                found = true
+                break
+            end
+        end
+        if not found then
+            table.insert(tbl, element)
+        end
+    end
+    return tbl
+end
+
 local function getClosestContainerCell(player, item, cells)
     if not player then
         if _DB then DB_Log("Can't get closest container cell because player is nil", "Error") end
@@ -130,20 +184,36 @@ local function getClosestContainerCell(player, item, cells)
 
     local closestContainerCell = nil
 
-    for i = #cells, 1, -1 do
-        local cell = cells[i]
-        local container = cell:GetCellContainer()
-        if not container then
-            -- remove cell from cells if container is nil
-            removeElement(cells, cell)
-        end
-        if (container:getCapacityWeight() + item:getActualWeight()) > container:getMaxWeight() then
-            -- remove cell from cells if container + item is full or container is nil
-            removeElement(cells, cell)
+    local SScells = getSSCell(cells, item)
+    local notSSCells = nil
+    if SScells then
+        if #SScells > 0 then
+            notSSCells = subTable(cells, SScells)
         end
     end
 
-    closestContainerCell = getClosestCell(player, cells)
+    if SScells then
+        if #SScells > 0 then
+            SScells = getValidContainerCells(SScells, item)
+        end
+    end
+    if notSSCells then
+        if #notSSCells > 0 then
+            notSSCells = getValidContainerCells(notSSCells, item)
+        end
+    end
+
+    if SScells then
+        if #SScells > 0 then
+            closestContainerCell = getClosestCell(player, SScells)
+        end
+    elseif notSSCells then
+        if #notSSCells > 0 then
+            closestContainerCell = getClosestCell(player, notSSCells)
+        end
+    else
+        closestContainerCell = getClosestCell(player, cells)
+    end
 
     return closestContainerCell
 end
@@ -466,3 +536,59 @@ end
 
 Events.OnTick.Add(UpdateCleaner)
 Events.OnFillWorldObjectContextMenu.Add(createContextOption)
+
+function fillInventory()
+    local MAXSplit = 50
+    local player = getPlayer()
+    local playerInv = player:getInventory()
+    if not playerInv then
+        print("No inventory found")
+        return
+    end
+    local allItems = getAllItems()
+    local count = 100
+    local items = {}
+    if allItems then
+        for i = 1, count do
+            local itemSplit = ZombRand(MAXSplit)
+            local itemSelect = ZombRand(allItems:size()/itemSplit)
+            local item = allItems:get((allItems:size()/MAXSplit)*itemSplit + itemSelect)
+            if item:getDisplayCategory() ~= "Furniture" and item:getDisplayName() then 
+                local newItem = instanceItem(item)
+                table.insert(items, newItem)
+            end
+        end
+    else
+        print("No items found")
+    end
+
+    if #items == 0 then return end
+    for i = 1, #items do
+        local item = items[i]
+        if item then playerInv:AddItem(item) 
+        else 
+            print("No item added")
+        end
+    end
+end
+
+function itemCategories()
+    local allItems = getAllItems()
+    local categories = {}
+    if allItems then
+        for i = 0, allItems:size() - 1 do
+            local gobalItem = allItems:get(i)
+            local item = gobalItem and InventoryItemFactory.CreateItem(gobalItem:getRegistry_id())
+            local tags = item:getTags()
+            for j = 0, tags:size() - 1 do
+                local tag = tags:get(j)
+                if not categories[tag] then
+                    categories[#categories + 1] = tag
+                end
+            end
+        end
+        for i = 1, #categories do
+            print(categories[i])
+        end
+    end
+end

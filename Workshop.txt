@@ -1,7 +1,0 @@
-version=1
-id=3301700286
-title=Clean Your Mess
-description=[h2]Help you clean the mess you have made ![/h2]
-description=[h3]Copyright 2024 <USERNAME>. This item is not authorized for posting on Steam, except under the Steam account named <USERNAME>.[/h3]
-tags=Build 41
-visibility=unlisted
