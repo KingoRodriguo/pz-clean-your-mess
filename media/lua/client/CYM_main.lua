@@ -22,6 +22,10 @@ CYM.data = {
     nextItemData = nil,
     nextContainerData = nil,
 
+    stateCache = {},
+    nextItemData = nil,
+    nextContainerData = nil,
+
     player = nil,
     playerQueue = {},
 
@@ -30,6 +34,9 @@ CYM.data = {
 
     IsoBuilding = nil,
     extended_IsoBuilding = nil,
+
+    skipCount = 0,
+    maxSkipCount = 5,
 
     skipCount = 0,
     maxSkipCount = 5,
@@ -68,10 +75,20 @@ CYM.State = {
     searchContainer = "searchContainer", -- search for the next container to store
     moveToContainer = "moveToContainer", -- move to the next container to store
     storeItem = "storeItem", -- store the next item to the container
+    cleaningItem = "cleaningItem", -- start cleaning state
+    searchItem = "searchItem",   -- search for the next item to clean
+    moveToItem = "moveToItem",  -- move to the next item to clean
+    pickItem = "pickItem",   -- pick the next item to clean
+
+    storingItem = "storingItem", -- start storing state
+    searchContainer = "searchContainer", -- search for the next container to store
+    moveToContainer = "moveToContainer", -- move to the next container to store
+    storeItem = "storeItem", -- store the next item to the container
 }
 
 CYM.ActionState = {
     perform = "perform",
+    skip = "skip",
     skip = "skip",
 }
 
@@ -94,6 +111,7 @@ local function getEquippedWeight(player)
         local item = items[i]
         if item:isEquipped() then
             weight = weight + item:getEquippedWeight()
+            weight = weight + item:getEquippedWeight()
         end
     end
     return weight
@@ -102,6 +120,7 @@ end
 local function isValidContainer(container, item)
     local result = false
     if container:getCapacityWeight() + item:getActualWeight() < container:getMaxWeight() then result = true end
+    --print("Container: " .. container:getType() .. " is valid: " .. tostring(result))
     --print("Container: " .. container:getType() .. " is valid: " .. tostring(result))
     return result
 end
@@ -154,6 +173,7 @@ local function getBestContainer(item)
     if CYM.data.MC_Active then -- Manage Containers compatibility
         -- get the closest valid container from Manage Containers
         --if choosenContainer then print("CYM: Manage Containers best container found") end
+        if choosenContainer then print("CYM: Manage Containers best container found") end
     end
     if not choosenContainer and CYM.data.SS_Active then -- Smarter Storage compatibility
         local SS_Squares = {}
@@ -222,6 +242,7 @@ function CYM_UpdateCleaner()
             return -- Action is not valid 
         else CYM.data.playerQueue.add(nextAction) end -- Add the next action to the queue
         CYM.data.skipCount = 0
+        CYM.data.skipCount = 0
     end
 end
 
@@ -242,6 +263,11 @@ end
 function CYM:reset()
     CYM.data.isRunning = false
     CYM.data.isPaused = false
+    CYM.data.currentState = CYM.State.idle
+    CYM.data.actionState = CYM.ActionState.perform
+    CYM.data.stateCache = {}
+    CYM.data.nextItemData = nil
+    CYM.data.nextContainerData = nil
     CYM.data.currentState = CYM.State.idle
     CYM.data.actionState = CYM.ActionState.perform
     CYM.data.stateCache = {}
@@ -279,6 +305,7 @@ function CYM:start(start_square)
     CYM.data.isRunning = true
     CYM.data.isPaused = false
     CYM.data.currentState = CYM.State.cleaningItem
+    CYM.data.currentState = CYM.State.cleaningItem
     CYM.data.player = getPlayer()
     CYM.data.playerQueue = ISTimedActionQueue.getTimedActionQueue(CYM.data.player)
 
@@ -302,6 +329,7 @@ end
 function CYM:getNextAction()
     CYM.data.lastState = CYM.data.currentState
     local nextAction = nil
+    local nextState = nil
     local nextState = nil
     local nextActionState = CYM.data.currentActionState
 
